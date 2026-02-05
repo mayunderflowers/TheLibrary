@@ -3,19 +3,15 @@
 
 --]]
 
--- v2.0.0 changelog
+-- v2.1.0 changelog
 --
 -- ADDITIONS
---   Added Catworld, IntersectingPlanes, Random, Charito, Catie,
---   Fleetcat, Zixi, Meptune, MayUnderFlowers, Quetzal, goobrey,
---   LegitSi, joeman, voii and Cause Key
--- 
+--   Added Leopardsun, Check Humany, Grace Period, Scraper,
+--   Speediness Potion, [TRACT B]
+--
 -- CHANGES
---   carykh no longer subtracts 1 when doubling Xmult
---   cassiepepsi is copy-compatible
---   normalben, Yuakim, and Trojan abilities changed
---   Rebalanced Koopa and woooowoooo
---   Fixed description for carykh, Verigold, and Mr. Dell
+--   Fixed Koopa ability
+--   Various texture fixes
 
 function maximum(table)
     local highestnumber = nil
@@ -38,14 +34,6 @@ SMODS.Atlas {
 	px = 71,
 	py = 95
 }
-
-SMODS.Atlas {
-	key = "twow_extras",
-	path = "Enhancers.png",
-	px = 71,
-	py = 95
-}
-
 
 SMODS.Atlas {
     key = "modicon",
@@ -248,12 +236,12 @@ SMODS.Joker {
 
     calculate = function(self, card, context)
         if context.joker_main then
-                return {
-                    xmult = card.ability.extra.xmult
-                }
+            return {
+                xmult = card.ability.extra.xmult
+            }
         end
 
-        if context.retrigger_joker_check and not context.retrigger_joker and context.other_card.config.center.key == 'j_twow_ilucuthen' then
+        if context.retrigger_joker_check and not context.retrigger_joker and context.other_card.config and context.other_card.config.center.key == 'j_twow_ilucuthen' then
             return {repetitions = 1}
         end
     end,
@@ -996,13 +984,20 @@ SMODS.Joker {
     },
     config = { extra = { mult = 6 } },
     loc_vars = function(self, info_queue, card)
-        local card_tally = 0
+        local card_tally = {nil, 0, nil, 0, nil, nil, 0}
+        local total_mult = 0
+        local deck_values = G.GAME.current_round.twow_koopa_values or {nil, 0, nil, 0, nil, nil, 0}
         if G.playing_cards then
             for _, playing_card in ipairs(G.playing_cards) do
-                if playing_card:get_id() == 4 or playing_card:get_id() == 7 or playing_card:get_id() == 2 then card_tally = card_tally + 1 end
+                if card_tally[playing_card:get_id()] then card_tally[playing_card:get_id()] = card_tally[playing_card:get_id()] + 1 end
             end
+            total_mult = card.ability.extra.mult * (
+            math.max(card_tally[4] - deck_values[4], 0) +
+            math.max(card_tally[7] - deck_values[7], 0) +
+            math.max(card_tally[2] - deck_values[2], 0))
         end
-        return { vars = { card.ability.extra.mult, card.ability.extra.mult * math.max(card_tally - 12, 0) } }
+        
+        return { vars = { card.ability.extra.mult, total_mult } }
     end,
 
     calculate = function(self, card, context)
@@ -1017,6 +1012,16 @@ SMODS.Joker {
         end
     end,
 }
+
+local function get_twow_koopa_initial_ranks()
+    G.GAME.current_round.twow_koopa_values = {nil, 0, nil, 0, nil, nil, 0}
+    for _, playing_card in ipairs(G.playing_cards) do
+        local current_rank_thing = G.GAME.current_round.twow_koopa_values[playing_card:get_id()]
+        if not SMODS.has_no_rank(playing_card) and current_rank_thing then
+            G.GAME.current_round.twow_koopa_values[playing_card.base.id] = current_rank_thing + 1
+        end
+    end
+end
 
 
 -- MISCH13VOUS
@@ -1148,7 +1153,7 @@ SMODS.Joker {
     },
 
     loc_vars = function(self, info_queue, card)
-		return { vars = { card.ability.immutable.requirement, 8 - card.ability.extra.cards } }
+		return { vars = { card.ability.immutable.requirement, card.ability.immutable.requirement - card.ability.extra.cards } }
 	end,
 
     calculate = function(self, card, context)
@@ -1208,7 +1213,7 @@ SMODS.Joker {
 	pos = { x = 0, y = 0 },
 	cost = 8,
     calculate = function(self, card, context)
-        if context.remove_playing_cards and not context.blueprint then
+        if context.remove_playing_cards then
             local glass_cards = 0
             for _, removed_card in ipairs(context.removed) do
                 if removed_card.shattered then glass_cards = glass_cards + 1 end
@@ -1224,11 +1229,11 @@ SMODS.Joker {
                         return true
                     end
                 }))
-                return nil, true -- This is for Joker retrigger purposes
+                return nil, true
             end
         end
     end,
-    in_pool = function(self, args) --equivalent to `enhancement_gate = 'm_glass'`
+    in_pool = function(self, args)
         for _, playing_card in ipairs(G.playing_cards or {}) do
             if SMODS.has_enhancement(playing_card, 'm_glass') then
                 return true
@@ -1415,7 +1420,7 @@ SMODS.Joker {
 
         local ret = SMODS.blueprint_effect(card, other_joker, context)
         if ret then
-            ret.colour = G.C.BLUE
+            ret.colour = G.C.MONEY
         end
         return ret
     end
@@ -2020,8 +2025,253 @@ SMODS.Joker {
 
 
 
+-- LEAH
+SMODS.Joker {
+    key = "leopardsun",
+    blueprint_compat = true,
+    unlocked = true, discovered = true,
+    rarity = 2,
+    cost = 6,
+    atlas = 'twow_jokers',
+    pos = { x = 5, y = 5 },
+
+    loc_txt = {
+        name="Leopardsun",
+        text={
+            "Adds a {C:purple}Purple{} or",
+            "{C:attention}Gold Seal{} to a",
+            "{C:attention}card{} held in hand",
+            "at end of round"
+        },
+    },
+
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue + 1] = G.P_SEALS['Gold']
+        info_queue[#info_queue + 1] = G.P_SEALS['Purple']
+    end,
+
+    calculate = function(self, card, context)
+
+        if context.end_of_round and context.main_eval then
+
+            local conv_card = pseudorandom_element(G.hand.cards, 'twow_leopardsun_card')
+            local seal_to_add = pseudorandom('twow_leopardsun_card', 1, 2) == 1 and 'Gold' or 'Purple'
+
+            G.E_MANAGER:add_event(Event({
+                trigger = 'after',
+                delay = 0.1,
+                func = function()
+                    conv_card:set_seal(seal_to_add, nil, true)
+                    return true
+                end
+            }))
+            return { message = seal_to_add..'!', colour = seal_to_add == 'Gold' and G.C.MONEY or G.C.PURPLE}
+
+        end
+    end,
+}
+
+-- CHECK HUMANY
+SMODS.Joker {
+    key = "check_humany",
+    blueprint_compat = true,
+    unlocked = true, discovered = true,
+    rarity = 1,
+    cost = 5,
+    atlas = 'twow_jokers',
+    pos = { x = 0, y = 6 },
+
+    loc_txt = {
+        name="Check Humany",
+        text={
+            "{C:chips}+#1#{} Chips",
+            "{C:chips}-#2#{} Chips every time",
+            "you check this {C:attention}Joker",
+        },
+    },
+    config = { extra = { chips = 82, chip_mod = 2, first_check = true } },
+
+    loc_vars = function(self, info_queue, card)
+
+        if first_check then first_check = false 
+        else card.ability.extra.chips = math.max(card.ability.extra.chips - card.ability.extra.chip_mod, 0) end
+
+        return { vars = { card.ability.extra.chips, card.ability.extra.chip_mod } }
+    end,
+
+    calculate = function(self, card, context)
+        if context.joker_main then
+
+            if card.ability.extra.chips <= 0 then
+                SMODS.destroy_cards(card, nil, nil, true)
+                return {
+                    message = "Holy shit new EWOW",
+                    colour = G.C.MONEY
+                }
+            end
+
+            return {chips = card.ability.extra.chips}
+        end
+    end
+}
+
+-- GRACE PERIOD
+SMODS.Joker {
+    key = "grace_period",
+    blueprint_compat = false,
+    unlocked = true, discovered = true,
+    rarity = 2,
+    cost = 6,
+    atlas = 'twow_jokers',
+    pos = { x = 1, y = 6 },
+
+    loc_txt = {
+        name="Grace Period",
+        text={
+            "{C:attention}Round{} doesn't end",
+            "until all hands played",
+        },
+    },
+
+    calculate = function(self, card, context)
+        if context.press_play then
+            GLOBAL_twow_grace_period = true
+        end
+    end,
+
+    add_to_deck = function(self, card, from_debuff) GLOBAL_twow_grace_period = true end,
+
+    remove_from_deck = function(self, card, from_debuff)
+        has_other_joker = false
+        for _, joker in ipairs(SMODS.find_card("grace_period")) do if joker ~= card then has_other_joker = true end end 
+        if not next(SMODS.find_card("grace_period")) then GLOBAL_twow_grace_period = false end
+    end,
+}
 
 
+-- SCRAPER
+SMODS.Joker {
+    key = "scraper",
+    blueprint_compat = true,
+    unlocked = true, discovered = true,
+    rarity = 1,
+    cost = 6,
+    atlas = 'twow_jokers',
+    pos = { x = 2, y = 6 },
+
+    loc_txt = {
+        name="Scraper",
+        text={
+            "{X:mult,C:white} X#1# {} Mult on final",
+            "hand if you have",
+            "at least {C:attention}80%",
+            "of required chips"
+            },
+    },
+
+    config = { extra = { xmult = 10 } },
+
+    loc_vars = function(self, info_queue, card)
+        return {vars = { card.ability.extra.xmult } }
+    end,
+
+    calculate = function(self, card, context)
+        if context.joker_main then
+            if G.GAME.chips / G.GAME.blind.chips >= 0.8 and G.GAME.current_round.hands_left == 0 then
+                return { xmult = card.ability.extra.xmult }
+            end
+        end
+        if context.drawing_cards then
+            if G.GAME.chips / G.GAME.blind.chips >= 0.8 and G.GAME.current_round.hands_left == 1 and not context.blueprint then
+                local eval = function(card) return G.GAME.current_round.hands_left == 1 and not G.RESET_JIGGLES end
+                juice_card_until(card, eval, true)
+            end
+        end
+    end,
+}
+
+-- SPEEDINESS POTION
+SMODS.Joker {
+    key = "speediness_potion",
+    blueprint_compat = true,
+    unlocked = true, discovered = true,
+    rarity = 1,
+    cost = 4,
+    atlas = 'twow_jokers',
+    pos = { x = 3, y = 6 },
+
+    loc_txt = {
+        name="Speediness Potion",
+        text={
+            "{C:attention}X#1#{} Game Speed",
+            "{C:dark_edition}+1{} Joker Slot",
+            },
+    },
+
+    config = { extra = { new_game_speed = 16 } },
+
+    loc_vars = function(self, info_queue, card)
+        return {vars = { card.ability.extra.new_game_speed } }
+    end,
+
+    calculate = function(self, card, context)
+        if card.ability.extra.is_active then
+            G.SETTINGS.GAMESPEED = card.ability.extra.new_game_speed
+        end
+    end,
+
+    add_to_deck = function(self, card, from_debuff)
+        G.jokers:change_size(1)
+        card.ability.extra.is_active = true
+        G.SETTINGS.GAMESPEED = card.ability.extra.new_game_speed
+    end,
+
+    remove_from_deck = function(self, card, from_debuff)
+        G.jokers:change_size(-1)
+        card.ability.extra.is_active = false
+    end,
+}
+
+-- TRACT B
+SMODS.Joker {
+    key = "tract_b",
+    blueprint_compat = true,
+    unlocked = true, discovered = true,
+    rarity = 2,
+    cost = 6,
+    atlas = 'twow_jokers',
+    pos = { x = 4, y = 6 },
+
+    loc_txt = {
+        name="[TRACT B]",
+        text={
+            "This Joker gains {C:mult}+#1#{} Mult",
+            "when first played card",
+            "is scored",
+            "{C:inactive}(Currently {C:red}+#2#{C:inactive} Mult)",
+            },
+    },
+
+    config = { extra = { mult = 0, mult_mod = 1 } },
+
+    loc_vars = function(self, info_queue, card)
+        return {vars = { card.ability.extra.mult_mod, card.ability.extra.mult } }
+    end,
+
+    calculate = function(self, card, context)
+        if context.joker_main then
+            return { mult = card.ability.extra.mult }
+        end
+        if context.individual and context.cardarea == G.play and context.other_card == context.scoring_hand[1] then
+            card.ability.extra.mult = card.ability.extra.mult + card.ability.extra.mult_mod
+            return {
+                message = localize { type = 'variable', key = 'a_mult', vars = { card.ability.extra.mult } },
+                message_card = card,
+				colour = G.C.MULT,
+            }
+        end
+    end,
+}
 
 
   
@@ -2046,7 +2296,9 @@ SMODS.Joker {
 
     calculate = function(self, card, context)
         if context.card_added then
-            if context.card.ability.extra and (context.card.config.center.mod or {}).id == 'TheLibrary' and context.card.config.center.key ~= "j_twow_carykh" then
+            if context.card.ability.extra
+            and (context.card.config.center.mod or {}).id == 'TheLibrary'
+            and context.card.config.center.key ~= "j_twow_carykh" then
                 for k, v in pairs(context.card.ability.extra) do
                     if type(v) == 'number' then
                         if (k == 'xmult') then context.card.ability.extra[k] = 2*v -- 2*v-1
@@ -2059,7 +2311,9 @@ SMODS.Joker {
 
     add_to_deck = function(self, card, from_debuff)
         for _, curr_joker in pairs(G.jokers.cards) do
-            if curr_joker.ability.extra and curr_joker and (curr_joker.config.center.mod or {}).id == 'TheLibrary' and curr_joker.config.center.key ~= "j_twow_carykh" then
+            if curr_joker.ability.extra and curr_joker
+            and (curr_joker.config.center.mod or {}).id == 'TheLibrary'
+            and curr_joker.config.center.key ~= "j_twow_carykh" then
                 for k, v in pairs(curr_joker.ability.extra) do
                     if type(v) == 'number' then
                         if (k == 'xmult') then curr_joker.ability.extra[k] = 2*v -- 2*v-1
@@ -2073,7 +2327,9 @@ SMODS.Joker {
 
     remove_from_deck = function(self, card, from_debuff)
         for _, curr_joker in pairs(G.jokers.cards) do
-            if curr_joker.ability.extra and curr_joker and (curr_joker.config.center.mod or {}).id == 'TheLibrary' and curr_joker.config.center.key ~= "j_twow_carykh" then
+            if curr_joker.ability.extra and curr_joker
+            and (curr_joker.config.center.mod or {}).id == 'TheLibrary'
+            and curr_joker.config.center.key ~= "j_twow_carykh" then
                 for k, v in pairs(curr_joker.ability.extra) do
                     if type(v) == 'number' then
                         if (k == 'xmult') then curr_joker.ability.extra[k] = v/2 -- (v+1)/2
@@ -2101,7 +2357,7 @@ SMODS.Tag {
             local card = SMODS.create_card {
                 set = "Joker",
                 area = context.area,
-                key = "j_twow_legitsi"
+                key = "j_twow_speediness_potion"
             }
             create_shop_card_ui(card, 'Joker', context.area)
             card.states.visible = false
@@ -2120,8 +2376,14 @@ SMODS.Tag {
     end
 }
 
-function SMODS.current_mod.reset_game_globals(run_start)
 
+
+
+function SMODS.current_mod.reset_game_globals(run_start)
+    if run_start then
+        get_twow_koopa_initial_ranks()
+        GLOBAL_twow_grace_period = false
+    end
 end
 
 ----------------------------------------------
