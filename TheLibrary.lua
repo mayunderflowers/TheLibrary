@@ -3,15 +3,11 @@
 
 --]]
 
--- v2.1.0 changelog
---
--- ADDITIONS
---   Added Leopardsun, Check Humany, Grace Period, Scraper,
---   Speediness Potion, [TRACT B]
---
+-- v2.1.1 changelog
 -- CHANGES
---   Fixed Koopa ability
---   Various texture fixes
+--   Check Humany now gets consumed when reduced to 0 Chips no matter when
+--   Check Humany also can no longer be Eternal
+--   Speediness Potion now actually multiplies game speed by 4
 
 function maximum(table)
     local highestnumber = nil
@@ -453,6 +449,7 @@ SMODS.Joker {
 SMODS.Joker {
     key = "avocado",
     blueprint_compat = true,
+    eternal_compat = false,
     unlocked = true, discovered = true,
     rarity = 1,
     cost = 6,
@@ -2074,7 +2071,7 @@ SMODS.Joker {
 -- CHECK HUMANY
 SMODS.Joker {
     key = "check_humany",
-    blueprint_compat = true,
+    blueprint_compat = true, eternal_compat = false
     unlocked = true, discovered = true,
     rarity = 1,
     cost = 5,
@@ -2089,12 +2086,27 @@ SMODS.Joker {
             "you check this {C:attention}Joker",
         },
     },
-    config = { extra = { chips = 82, chip_mod = 2, first_check = true } },
+    config = { extra = { chips = 80, chip_mod = 2 }, immutable = {check_count = 0} },
 
     loc_vars = function(self, info_queue, card)
 
-        if first_check then first_check = false 
+        if card.ability.immutable.check_count < 1 then card.ability.immutable.check_count = card.ability.immutable.check_count + 1 
         else card.ability.extra.chips = math.max(card.ability.extra.chips - card.ability.extra.chip_mod, 0) end
+
+        if card.ability.extra.chips <= 0 then
+            G.E_MANAGER:add_event(Event({trigger = 'before', delay = 0.4, func = function()
+
+            attention_text({
+                text = "Holy shit new EWOW", scale = 0.9, hold = 1.4,
+                backdrop_colour = G.C.MONEY,
+                align = 'bm', major = card, yoffset = {x = 0, y = -0.8},
+                silent = true
+                })
+
+            SMODS.destroy_cards(card, nil, nil, true)
+
+            return true end }))
+        end
 
         return { vars = { card.ability.extra.chips, card.ability.extra.chip_mod } }
     end,
@@ -2143,8 +2155,8 @@ SMODS.Joker {
 
     remove_from_deck = function(self, card, from_debuff)
         has_other_joker = false
-        for _, joker in ipairs(SMODS.find_card("grace_period")) do if joker ~= card then has_other_joker = true end end 
-        if not next(SMODS.find_card("grace_period")) then GLOBAL_twow_grace_period = false end
+        for _, joker in ipairs(SMODS.find_card("j_twow_grace_period")) do if joker ~= card then has_other_joker = true end end 
+        if not next(SMODS.find_card("j_twow_grace_period")) then GLOBAL_twow_grace_period = false end
     end,
 }
 
@@ -2193,7 +2205,7 @@ SMODS.Joker {
 -- SPEEDINESS POTION
 SMODS.Joker {
     key = "speediness_potion",
-    blueprint_compat = true,
+    blueprint_compat = false,
     unlocked = true, discovered = true,
     rarity = 1,
     cost = 4,
@@ -2208,27 +2220,18 @@ SMODS.Joker {
             },
     },
 
-    config = { extra = { new_game_speed = 16 } },
+    config = { extra = { new_game_speed = 4 } },
 
     loc_vars = function(self, info_queue, card)
         return {vars = { card.ability.extra.new_game_speed } }
     end,
 
-    calculate = function(self, card, context)
-        if card.ability.extra.is_active then
-            G.SETTINGS.GAMESPEED = card.ability.extra.new_game_speed
-        end
-    end,
-
     add_to_deck = function(self, card, from_debuff)
         G.jokers:change_size(1)
-        card.ability.extra.is_active = true
-        G.SETTINGS.GAMESPEED = card.ability.extra.new_game_speed
     end,
 
     remove_from_deck = function(self, card, from_debuff)
         G.jokers:change_size(-1)
-        card.ability.extra.is_active = false
     end,
 }
 
@@ -2342,7 +2345,7 @@ SMODS.Joker {
 
 }
 
--- Testing Tag
+--[[ Testing Tag
 SMODS.Tag {
     key = "testing",
     pos = { x = 3, y = 4 },
@@ -2357,7 +2360,7 @@ SMODS.Tag {
             local card = SMODS.create_card {
                 set = "Joker",
                 area = context.area,
-                key = "j_twow_speediness_potion"
+                key = "j_twow_check_humany"
             }
             create_shop_card_ui(card, 'Joker', context.area)
             card.states.visible = false
@@ -2375,8 +2378,7 @@ SMODS.Tag {
         return false
     end
 }
-
-
+]]
 
 
 function SMODS.current_mod.reset_game_globals(run_start)
