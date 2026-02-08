@@ -2071,7 +2071,7 @@ SMODS.Joker {
 -- CHECK HUMANY
 SMODS.Joker {
     key = "check_humany",
-    blueprint_compat = true, eternal_compat = false
+    blueprint_compat = true, eternal_compat = false, 
     unlocked = true, discovered = true,
     rarity = 1,
     cost = 5,
