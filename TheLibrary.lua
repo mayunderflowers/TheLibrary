@@ -3,11 +3,12 @@
 
 --]]
 
--- v2.1.1 changelog
+-- v2.1.2 changelog
 -- CHANGES
---   Check Humany now gets consumed when reduced to 0 Chips no matter when
---   Check Humany also can no longer be Eternal
---   Speediness Potion now actually multiplies game speed by 4
+--   Make Scraper compatible with Multplayer
+--   voii now gives x0.4 mult per destroyed Spade
+--   Azurite now only needs 4 cards to be added to deck
+--   Ironic's ability changed
 
 function maximum(table)
     local highestnumber = nil
@@ -19,6 +20,8 @@ function maximum(table)
     end
     return highestnumber
 end
+
+to_big = to_big or function(x) return x end
 
 loc_colour()
 G.ARGS.LOC_COLOURS.twow_main = HEX('166125')
@@ -953,6 +956,10 @@ SMODS.Joker{
     calculate = function(self, card, context)
         if context.individual and context.cardarea == G.play and context.other_card:is_suit('Clubs') and not context.blueprint then
             card.ability.extra.xmult = card.ability.extra.xmult + card.ability.extra.xmult_mod
+            return {
+                message = localize('k_upgrade_ex'),
+                colour = G.C.MULT
+            }
         end
         if context.joker_main then return {xmult = card.ability.extra.xmult} end
     end
@@ -1137,7 +1144,7 @@ SMODS.Joker {
     atlas = 'twow_jokers',
     pos = { x = 8, y = 2 },
 
-    config = { extra = {cards = 0}, immutable = { requirement = 8 } },
+    config = { extra = {cards = 0}, immutable = { requirement = 4 } },
 
     loc_txt = {
         name="Azurite",
@@ -1318,9 +1325,9 @@ SMODS.Joker {
     loc_txt = {
         name="Ironic",
         text={
-            "This Joker duplicates",
-            "{C:attention}Tags{} made when {C:attention}Blind{}",
-            "is skipped"
+            "This Joker gives the",
+            "{C:attention}Small Blind{} skip tag",
+            "when Blind is selected"
         },
     },
 
@@ -1330,13 +1337,12 @@ SMODS.Joker {
 	end,
 
     calculate = function(self, card, context)
-        if context.skip_blind then
+        if context.setting_blind and context.blind.key == 'bl_small' then
             G.E_MANAGER:add_event(Event({
                 func = (function()
-                    if G.GAME.tags[#G.GAME.tags].ability and G.GAME.tags[#G.GAME.tags].ability.orbital_hand then
-                        G.orbital_hand = G.GAME.tags[#G.GAME.tags].ability.orbital_hand
-                    end
-                    add_tag(Tag(G.GAME.tags[#G.GAME.tags].key))
+
+                    local tag_to_copy = Tag(G.GAME.round_resets.blind_tags.Small)
+                    add_tag(tag_to_copy)
                     G.orbital_hand = nil
                     play_sound('generic1', 0.9 + math.random()*0.1, 0.8)
                     play_sound('holo1', 1.2 + math.random()*0.1, 0.4)
@@ -1959,7 +1965,7 @@ SMODS.Joker {
         },
     },
 
-    config = { extra = { xmult = 1, xmult_mod = 0.2 } },
+    config = { extra = { xmult = 1, xmult_mod = 0.4 } },
 
     loc_vars = function(self, info_queue, card)
         return { vars = { card.ability.extra.xmult, card.ability.extra.xmult_mod } }
@@ -2187,14 +2193,33 @@ SMODS.Joker {
         return {vars = { card.ability.extra.xmult } }
     end,
 
+    -- this code fucking sucks
+
     calculate = function(self, card, context)
+
         if context.joker_main then
-            if G.GAME.chips / G.GAME.blind.chips >= 0.8 and G.GAME.current_round.hands_left == 0 then
+
+            local other_chips = G.GAME.blind.chips
+
+            if G.GAME.blind.config.blind.key == 'bl_mp_nemesis' then
+                other_chips = tonumber( string.gsub(MP.INSANE_INT.to_string(MP.GAME.enemy.score), ",", ""), 10 )
+                if other_chips == nil then other_chips = to_big( MP.INSANE_INT.to_string(MP.GAME.enemy.score)) end
+            end
+
+            if G.GAME.chips / other_chips >= 0.8 and G.GAME.current_round.hands_left == 0 then
                 return { xmult = card.ability.extra.xmult }
             end
         end
-        if context.drawing_cards then
-            if G.GAME.chips / G.GAME.blind.chips >= 0.8 and G.GAME.current_round.hands_left == 1 and not context.blueprint then
+        if G.GAME.blind and context.drawing_cards then
+
+            local other_chips = G.GAME.blind.chips
+
+            if G.GAME.blind.config.blind.key == 'bl_mp_nemesis' then
+                other_chips = tonumber( string.gsub(MP.INSANE_INT.to_string(MP.GAME.enemy.score), ",", ""), 10 )
+                if other_chips == nil then other_chips = to_big( MP.INSANE_INT.to_string(MP.GAME.enemy.score)) end
+            end
+
+            if G.GAME.chips / other_chips >= 0.8 and G.GAME.current_round.hands_left == 1 and not context.blueprint then
                 local eval = function(card) return G.GAME.current_round.hands_left == 1 and not G.RESET_JIGGLES end
                 juice_card_until(card, eval, true)
             end
