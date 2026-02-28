@@ -24,6 +24,13 @@
 --   Catie, Trojan, Zixi, Cause Key, and [TRACT B] all have new abilities
 --   Hovering over Check Humany 40 times in the collection no longer crashes the game
 --   Jokers are no longer automatically discovered
+-- 
+-- v3.0.1 changelog
+-- CHANGES
+--   Alumnus no longer gives an Index Card every time secret hand is played
+--   Glicko Mode checks the suit of the card before triggering
+--   Dog-Eared is no longer non-functional on Bookworm Deck
+--   Fixed incomplete Collection bug
 
 to_big = to_big or function(x) return x end
 
@@ -2369,7 +2376,7 @@ SMODS.Joker {
     end,
 
     calculate = function(self, card, context)
-        if context.individual and context.cardarea == G.play then
+        if context.individual and context.cardarea == G.play and context.other_card:is_suit("Spades") then
             context.other_card.ability.twow_glicko_played = true
             return {
                 xmult = card.ability.extra.xmult
@@ -2469,12 +2476,6 @@ SMODS.Joker {
             },
     },
 
-    config = { extra = { mult = 5 } },
-
-    loc_vars = function(self, info_queue, card)
-        return {vars = {card.ability.extra.mult}}
-    end,
-
     calculate = function(self, card, context)
         if context.modify_hand then
             mult = mod_mult((hand_chips + mult)%2+mult)
@@ -2518,7 +2519,7 @@ SMODS.Joker {
     end
 }
 
--- ?????
+-- ALUMNUS
 SMODS.Joker {
     key = "alumnus",
     blueprint_compat = true,
@@ -2540,13 +2541,9 @@ SMODS.Joker {
 
     config = { extra = { played_this_ante = false } },
 
-    loc_vars = function(self, info_queue, card)
-        local suit = (G.GAME.current_round.twow_gridlock or {}).suit or 'Spades'
-        return { vars = { localize(suit, 'suits_plural'), colours = { G.C.SUITS[suit] } } }
-    end,
     calculate = function(self, card, context)
         if context.before then
-            if next(context.poker_hands["Five of a Kind"]) or next(context.poker_hands["Flush Five"]) or next(context.poker_hands["Flush House"]) and not card.ability.extra.played_this_ante then
+            if (next(context.poker_hands["Five of a Kind"]) or next(context.poker_hands["Flush Five"]) or next(context.poker_hands["Flush House"])) and not card.ability.extra.played_this_ante then
                 card.ability.extra.played_this_ante = true
                 if #G.consumeables.cards + G.GAME.consumeable_buffer < G.consumeables.config.card_limit then
                     G.GAME.consumeable_buffer = G.GAME.consumeable_buffer + 1
@@ -2963,51 +2960,10 @@ SMODS.Consumable {
     end
 }
 
--- PANACEA
-SMODS.Consumable {
-    key = 'panacea',
-    set = 'twow_Index',
-    atlas = 'twow_indexes',
-    pos = { x = 4, y = 1 },
-    cost = 5,
-    display_size = {w = 95, h = 59},
-
-    loc_txt = {
-        name="Panacea",
-        text={
-            "Add a {C:attention}Bookmark{}",
-            "to two random {C:attention}Jokers{}",
-        },
-    },
-
-    use = function(self, card, area, copier)
-
-        local empty_jokers = {}
-        for i = 1, #G.jokers.cards do
-            if not has_bookmark(G.jokers.cards[i]) then
-                empty_jokers[#empty_jokers + 1] = G.jokers.cards[i]
-            end
-        end
-
-        pseudoshuffle(empty_jokers, 'twow_panacea')
-        add_bookmark(empty_jokers[1], 'any')
-        add_bookmark(empty_jokers[2], 'any')
-
-    end,
-    can_use = function(self, card)
-        local empty_jokers = {}
-        for i = 1, #G.jokers.cards do
-            if not has_bookmark(G.jokers.cards[i]) then
-                empty_jokers[#empty_jokers + 1] = G.jokers.cards[i]
-            end
-        end
-        return #empty_jokers >= 2
-    end
-}
-
 --- BOOKWORM DECK
 SMODS.Back{
     name = "Bookworm Deck",
+    unlocked = true, discovered = true,
     key = "bookworm",
     atlas = 'twow_jokers',
     pos = {x = 8, y = 3},
@@ -3118,7 +3074,7 @@ SMODS.Sticker {
     key = "bookmark_any",
     badge_colour = HEX('A0363B'),
     atlas = 'twow_jokers',
-    no_collection = true,
+    no_collection = true, unlocked = true, discovered = true,
     pos = { x = 2, y = 3 },
 
     default_compat = true,
@@ -3134,10 +3090,10 @@ SMODS.Sticker {
     should_apply = function(self, card, center, area, bypass_roll)
         return card.ability.set == "Joker" and
             (
-                (G.GAME.modifiers.twow_enable_bookmarks_in_shop or
-                ( area == G.pack_cards and G.GAME.modifiers.twow_enable_bookmarks_in_packs )
-                ) and (pseudorandom('twow_apply_bookmark') < 0.1)
-            or bypass_roll)
+                (G.GAME.modifiers.twow_enable_bookmarks_in_shop and pseudorandom('twow_apply_bookmark') < 0.1) or
+                ( area == G.pack_cards and G.GAME.modifiers.twow_enable_bookmarks_in_packs and pseudorandom('twow_apply_bookmark_pack') < 0.1 )
+                or bypass_roll
+            )
     end,
 
     apply = function(self, card, val)
