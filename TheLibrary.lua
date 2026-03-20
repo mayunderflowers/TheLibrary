@@ -31,6 +31,10 @@
 --   Glicko Mode checks the suit of the card before triggering
 --   Dog-Eared is no longer non-functional on Bookworm Deck
 --   Fixed incomplete Collection bug
+--
+-- v3.0.2 changelog
+-- CHANGES
+--   New ability for Glicko Mode
 
 to_big = to_big or function(x) return x end
 
@@ -2348,8 +2352,6 @@ SMODS.Joker {
     end,
 }
 
-SMODS.current_mod.set_ability_reset_keys = function() return {"twow_glicko_played"} end
-
 -- GLICKO MODE
 SMODS.Joker {
     key = "glicko_mode",
@@ -2363,7 +2365,7 @@ SMODS.Joker {
     loc_txt = {
         name="Glicko Mode",
         text={
-            "Scored {C:spades}Spades{} give",
+            "{C:blue}Common{} Jokers give",
             "{X:mult,C:white} X#1# {} Mult and",
             "are {C:attention}debuffed{}"
             },
@@ -2376,26 +2378,38 @@ SMODS.Joker {
     end,
 
     calculate = function(self, card, context)
-        if context.individual and context.cardarea == G.play and context.other_card:is_suit("Spades") then
-            context.other_card.ability.twow_glicko_played = true
+        if context.card_added and context.card.ability.set == 'Joker' then
+            for _, joker in ipairs(G.jokers.cards or {}) do
+                if joker.config.center.rarity == 1 then
+                    SMODS.debuff_card(joker, true, 'glicko_mode')
+                end
+            end
+            if context.card.config.center.rarity == 1 then
+                SMODS.debuff_card(context.card, true, 'glicko_mode')
+            end
+        end
+        if context.other_joker and context.other_joker.config.center.rarity == 1 then
             return {
                 xmult = card.ability.extra.xmult
             }
         end
-        if context.debuff_card and context.debuff_card.area ~= G.jokers and context.debuff_card.ability.twow_glicko_played then
-            return { debuff = true }
-        end
     end,
 
-
-    remove_from_deck = function(self, card, from_debuff)
-        if not from_debuff then 
-            for _, playing_card in ipairs(G.playing_cards or {}) do
-                playing_card.ability.twow_glicko_played = nil
+    add_to_deck = function(self, card, from_debuff)
+        for _, joker in ipairs(G.jokers.cards or {}) do
+            if joker.config.center.rarity == 1 then
+                SMODS.debuff_card(joker, true, 'glicko_mode')
             end
         end
     end,
 
+    remove_from_deck = function(self, card, from_debuff)
+        for _, joker in ipairs(G.jokers.cards or {}) do
+            if joker.config.center.rarity == 1 then
+                SMODS.debuff_card(joker, false, 'glicko_mode')
+            end
+        end
+    end,
 
 }
 
