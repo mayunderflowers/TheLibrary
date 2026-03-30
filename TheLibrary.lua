@@ -35,6 +35,11 @@
 -- v3.0.2 changelog
 -- CHANGES
 --   New ability for Glicko Mode
+--
+-- v3.1.0 changelog
+-- CHANGES
+--   Mauls cassiepepsi
+--   JokerDisplay compatibility added
 
 to_big = to_big or function(x) return x end
 
@@ -102,7 +107,7 @@ SMODS.Joker {
             denominator = denominator*6 
         elseif numerator == 8 then
             numerator = numerator*5
-            denominator = numerator*5
+            denominator = denominator*5
         end
         return { vars = { numerator, denominator, card.ability.extra.dollars } }
     end,
@@ -127,6 +132,51 @@ SMODS.Joker {
             }
         end
     end
+    --[[ joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- insert your definition here
+        }
+    end, ]]
+    --[[ joker_display_def = function(JokerDisplay)
+        -----@type JDJokerDefinition
+        return {
+            -- insert your definition here
+            text = {
+                { ref_table = "card.joker_display_values", ref_value = "count", retrigger_type = "mult" },
+                { text = "x",                              scale = 0.35 },
+                { text = "$2",                             colour = G.C.GOLD },
+            },
+            reminder_text = {
+                { ref_table = "card.joker_display_values", ref_value = "localized_text" }
+            }
+            extra = {
+                {
+                    { text = "(" },
+                    { ref_table = "card.joker_display_values", ref_value = "odds" },
+                    { text = ")" },
+                }
+            },
+            extra_config = { colour = G.C.GREEN, scale = 0.3 },
+            calc_function = function(card)
+                local count = 0
+                local text, _, scoring_hand = JokerDisplay.evaluate_hand()
+                if text ~= 'Unknown' then
+                    for _, scoring_card in pairs(scoring_hand) do
+                        if scoring_card:is_face() then
+                            count = count +
+                                JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand)
+                        end
+                    end
+                end
+                card.joker_display_values.count = count
+                local numerator, denominator = 1, card.ability.extra
+                if SMODS then numerator, denominator = SMODS.get_probability_vars(card, numerator, denominator, 'twow_zettex') end
+                card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = { numerator, denominator } }
+                card.joker_display_values.localized_text = "(" .. localize("King", "ranks").. localize("Jack", "ranks") .. ",6,4,2)"
+            end
+        }
+    end, ]]
 }
 
 
@@ -175,6 +225,16 @@ SMODS.Joker {
                 chips = card.ability.extra.chips
             }
         end
+    end,
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            text = {
+                { text = "+" },
+                { ref_table = "card.ability.extra", ref_value = "chips", retrigger_type = "mult" }
+            },
+            text_config = { colour = G.C.CHIPS },
+        }
     end,
 }
 
@@ -229,7 +289,18 @@ SMODS.Joker {
             }
         end
     end,
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            text = {
+                { text = "+" },
+                { ref_table = "card.ability.extra", ref_value = "chips", retrigger_type = "mult" }
+            },
+            text_config = { colour = G.C.CHIPS },
+        }
+    end,
 }
+
 
 
 -- ILUCUTHEN
@@ -317,7 +388,40 @@ SMODS.Joker{
                 end
             }
         end
-    end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- insert your definition here
+            text = {
+                { text = "+$" },
+                { ref_table = "card.joker_display_values", ref_value = "dollars", retrigger_type = "mult" },
+            },
+            text_config = { colour = G.C.GOLD },
+            reminder_text = {
+                { text = "(" },
+                { ref_table = "card.joker_display_values", ref_value = "localized_text" },
+                { text = ")" }
+            },
+            reminder_text_config = { scale = 0.35 },
+            calc_function = function(card)
+                local dollars = 0
+                local hand = G.hand.highlighted
+                for _, playing_card in pairs(hand) do
+                    if playing_card.facing and not (playing_card.facing == 'back') and not playing_card.debuff and playing_card:get_id() and playing_card:is_suit("Diamonds") then
+                        dollars = dollars + card.ability.extra.dollars
+                    end
+                end
+                card.joker_display_values.dollars = G.GAME.current_round.discards_left > 0 and dollars or 0
+                card.joker_display_values.localized_text = localize("Diamonds", 'suits_plural')
+            end,
+            style_function = function(card, text, reminder_text, extra)
+                local suit_node = reminder_text and reminder_text.children and reminder_text.children[2]
+                if suit_node then suit_node.config.colour = lighten(G.C.SUITS["Diamonds"], 0.35) end
+            end,
+        }
+    end,
 }
 
 
@@ -356,6 +460,25 @@ SMODS.Joker {
                 }
             end
         end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- insert your definition here
+            text = {
+                { text = "+", colour = G.C.CHIPS},
+                { ref_table = "card.joker_display_values", ref_value = "chips", retrigger_type = "mult", colour = G.C.CHIPS },
+                { text = "/", colour = G.C.JOKER_GREY},
+                { text = "+", colour = G.C.MULT},
+                { ref_table = "card.joker_display_values", ref_value = "mult", retrigger_type = "mult", colour = G.C.MULT},
+            },
+            
+            calc_function = function(card)
+                card.joker_display_values.chips = card.ability.extra.chips
+                card.joker_display_values.mult = card.ability.extra.mult
+            end,
+        }
     end,
 }
 
@@ -396,6 +519,18 @@ SMODS.Joker {
             return {mult = card.ability.extra.mult}            
         end
     end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            text = {
+                { text = "+" },
+                { ref_table = "card.ability.extra", ref_value = "mult", retrigger_type = "mult" }
+            },
+            text_config = { colour = G.C.MULT },
+        }
+    end,
+
 }
 
 
@@ -425,6 +560,28 @@ SMODS.Joker {
         if context.joker_main and context.scoring_name == "High Card" then
             return { chips = card.ability.extra.chips }
         end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            text = {
+                { text = "+" },
+                { ref_table = "card.joker_display_values", ref_value = "chips", retrigger_type = "mult" }
+            },
+            text_config = { colour = G.C.CHIPS },
+            reminder_text = {
+                { text = "(" },
+                { ref_table = "card.joker_display_values", ref_value = "localized_text", colour = G.C.ORANGE },
+                { text = ")" },
+            },
+            calc_function = function(card)
+                local text, poker_hands, _ = JokerDisplay.evaluate_hand()
+                local is_high_card = text == card.ability.extra.type
+                card.joker_display_values.chips = is_high_card and card.ability.extra.chips or 0
+                card.joker_display_values.localized_text = localize(card.ability.extra.type, 'poker_hands')
+            end
+        }
     end,
 }
 
@@ -472,8 +629,30 @@ SMODS.Joker {
 		end
 	end,
 
-    calc_dollar_bonus = function(self, card) return card.ability.extra.dollars end
+    calc_dollar_bonus = function(self, card) return card.ability.extra.dollars end,
     
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- would prefer this to update on starting the shop rather than just before it activates
+            text = {
+                { text = "+$" },
+                { ref_table = "card.joker_display_values", ref_value = "dollars" },
+            },
+            text_config = { colour = G.C.GOLD },
+            reminder_text = {
+                { ref_table = "card.joker_display_values", ref_value = "localized_text" },
+            },
+            calc_function = function(card)
+                card.joker_display_values.localized_text = "(" .. localize("k_round") .. ")"
+                if card.ability.extra.initialized then
+                    card.joker_display_values.dollars = card.ability.extra.dollars
+                else
+                    card.joker_display_values.dollars = card.ability.extra.dollars - 1
+                end 
+            end
+            }
+        end,
 }
 
 
@@ -536,6 +715,24 @@ SMODS.Joker {
             end
         end
     end,
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            extra = {
+            {
+                { text = "(" },
+                { ref_table = "card.joker_display_values", ref_value = "odds" },
+                { text = ")" },
+            }
+        },
+        extra_config = { colour = G.C.GREEN, scale = 0.3 },
+        calc_function = function(card)
+            local numerator, denominator = 1, card.ability.extra.odds
+            if SMODS then numerator, denominator = SMODS.get_probability_vars(card, numerator, denominator, 'twow_avocado') end
+            card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = { numerator, denominator } }
+        end
+        }
+    end,
 }
 
 -- ANNE
@@ -576,7 +773,48 @@ SMODS.Joker {
                 end
 			end
 		end
-	end
+	end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- insert your definition here
+            text = {
+                { text = "+", colour = G.C.CHIPS},
+                { ref_table = "card.joker_display_values", ref_value = "chips", retrigger_type = "mult", colour = G.C.CHIPS },
+                { text = "/", colour = G.C.JOKER_GREY},
+                { text = "+", colour = G.C.MULT},
+                { ref_table = "card.joker_display_values", ref_value = "mult", retrigger_type = "mult", colour = G.C.MULT},
+                { text = "/", colour = G.C.JOKER_GREY},
+                { text = "+$", colour = G.C.GOLD},
+                { ref_table = "card.joker_display_values", ref_value = "dollars", retrigger_type = "mult", colour = G.C.GOLD},
+            },
+            reminder_text = {
+                { text = "["},
+                { ref_table = "card.joker_display_values", ref_value = "count", retrigger_type = "mult"},
+                { text = "x", scale = 0.3},
+                { ref_table = "card.joker_display_values", ref_value = "localized_text"},
+                { text = "]"},
+            },
+            
+            calc_function = function(card)
+                card.joker_display_values.chips = card.ability.extra.chips
+                card.joker_display_values.mult = card.ability.extra.mult
+                card.joker_display_values.dollars = card.ability.extra.dollars
+                card.joker_display_values.localized_text = localize("Queen","ranks")
+                local text, _, scoring_hand = JokerDisplay.evaluate_hand()
+                local count = 0
+                if text ~= 'Unknown' then
+                    for _, scoring_card in pairs(scoring_hand) do
+                        if scoring_card:get_id() and ((scoring_card:get_id() == 12)) then
+                            count = count + JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand)
+                        end
+                    end
+                end
+                card.joker_display_values.count = count
+            end,
+        }
+    end,
 }
 
 
@@ -625,7 +863,39 @@ SMODS.Joker {
                 }
             end
         end
-    end
+    end,
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            text = {
+                { text = "+" },
+                { ref_table = "card.joker_display_values", ref_value = "chips", retrigger_type = "mult" }
+            },
+            text_config = { colour = G.C.CHIPS },
+
+            reminder_text = {
+                { text = "(" },
+                { ref_table = "card.joker_display_values", ref_value = "loyalty_text" },
+                { text = ")" },
+            },
+            calc_function = function(card)
+                local loyalty_remaining = card.ability.extra.hands_remaining + (next(G.play.cards) and 1 or 0)
+                card.joker_display_values.is_active = loyalty_remaining % (card.ability.extra.every + 1) == 0
+                card.joker_display_values.loyalty_text = localize {
+                    type = 'variable',
+                    key = (card.joker_display_values.is_active and 'loyalty_active' or 'loyalty_inactive'),
+                    vars = { loyalty_remaining }
+                }
+                card.joker_display_values.chips = (card.joker_display_values.is_active and card.ability.extra.chips or 0)
+            end,
+            style_function = function(card, text, reminder_text, extra)
+                if reminder_text and reminder_text.children and reminder_text.children[2] then
+                    reminder_text.children[2].config.colour = card.joker_display_values.is_active and G.C.GREEN or
+                        G.C.UI.TEXT_INACTIVE
+                end
+            end
+        }
+    end,
 }
 
 -- DARK
@@ -666,6 +936,12 @@ SMODS.Joker {
             return nil, true -- This is for Joker retrigger purposes
         end
     end,
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- none for Dark
+        }
+    end,
 }
 
 -- LEIZ
@@ -699,6 +975,13 @@ SMODS.Joker {
             end
         end
         return false
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- none for LeiZ
+        }
     end,
 }
 
@@ -790,6 +1073,43 @@ SMODS.Joker {
             return {repetitions = 1}
         end
     end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            retrigger_function = function(playing_card, scoring_hand, held_in_hand, joker_card)
+                if held_in_hand then return 0 end
+                
+                local _,_,scoring_hand_local = JokerDisplay.evaluate_hand()
+                local suits = {
+                    ['Hearts'] = 0,
+                    ['Diamonds'] = 0,
+                    ['Spades'] = 0,
+                    ['Clubs'] = 0
+                }
+                for i = 1, #scoring_hand_local do
+                    if not SMODS.has_any_suit(scoring_hand_local[i]) then
+                        for suit_name, _ in pairs(suits) do
+                            if scoring_hand_local[i]:is_suit(suit_name) and suits[suit_name] == 0 then suits[suit_name] = suits[suit_name] + 1 break
+                            end
+                        end
+                    end
+                end
+                for i = 1, #scoring_hand_local do
+                    if SMODS.has_any_suit(scoring_hand_local[i]) then
+                        for suit_name, _ in pairs(suits) do
+                            if scoring_hand_local[i]:is_suit(suit_name) and suits[suit_name] == 0 then suits[suit_name] = suits[suit_name] + 1 break
+                            end
+                        end
+                    end
+                end
+                all_suits_check = suits["Hearts"] > 0 and suits["Diamonds"] > 0 and suits["Spades"] > 0 and suits["Clubs"] > 0
+
+                return all_suits_check and JokerDisplay.in_scoring(playing_card, scoring_hand) and
+                    1 * JokerDisplay.calculate_joker_triggers(joker_card) or 0
+            end,
+        }
+        end,
 }
 
 -- VERIGOLD
@@ -827,7 +1147,15 @@ SMODS.Joker{
                 return {m_gold = true}
             end
         end
-    end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- could do main text Gold = Steel but that could be confusing. otherwise none for Veri
+        }
+    end,
+
 }
 
 -- ADAMANTI
@@ -862,6 +1190,23 @@ SMODS.Joker{
             }
         end
     end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            reminder_text = {
+                { text = "(" .. localize("k_aces") .. ")"}
+            },
+
+            retrigger_function = function(playing_card, scoring_hand, held_in_hand, joker_card)
+                if held_in_hand then return 0 end
+                return JokerDisplay.in_scoring(playing_card, scoring_hand) and
+                    (playing_card:get_id() == 14) and
+                    joker_card.ability.extra.repetitions * JokerDisplay.calculate_joker_triggers(joker_card) or 0
+            end,
+        }
+    end,
+    
 }
 
 -- COOLGAMER707
@@ -899,7 +1244,14 @@ SMODS.Joker{
                 colour = G.C.MULT
             }
         end
-    end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- none for coolgamer
+        }
+    end,
 }
 
 
@@ -955,6 +1307,12 @@ SMODS.Joker{
         end
     end,
 
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- none for snivy
+        }
+    end,
 }
 
 
@@ -993,7 +1351,32 @@ SMODS.Joker{
             }
         end
         if context.joker_main then return {xmult = card.ability.extra.xmult} end
-    end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            text = {
+                {
+                    border_nodes = {
+                        { text = "X" },
+                        { ref_table = "card.joker_display_values", ref_value = "x_mult", retrigger_type = "exp" }
+                    }
+                }
+            },
+            reminder_text = {
+                { text = "(" },
+                { ref_table = "card.joker_display_values", ref_value = "localized_text_clubs", colour = lighten(G.C.SUITS["Clubs"], 0.35) },
+                { text = ")" },
+            },
+            
+            calc_function = function(card)                
+                card.joker_display_values.x_mult = card.ability.extra.xmult
+                card.joker_display_values.localized_text_clubs = localize("Clubs", 'suits_plural')
+            end,
+        }    
+    end,
+    
 }
 
 
@@ -1046,6 +1429,26 @@ SMODS.Joker {
             return { mult = card.ability.extra.mult * math.max(card_tally - 12, 0) }
         end
     end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            text = {
+                { text = "+" },
+                { ref_table = "card.joker_display_values", ref_value = "mult", retrigger_type = "mult" }
+            },
+            text_config = { colour = G.C.MULT },
+            calc_function = function(card)
+                local card_tally = 0
+                if G.playing_cards then
+                    for _, playing_card in ipairs(G.playing_cards) do
+                        if playing_card:get_id() == 4 or playing_card:get_id() == 7 or playing_card:get_id() == 2 then card_tally = card_tally + 1 end
+                    end
+                end
+                card.joker_display_values.mult = card.ability.extra.mult * math.max(card_tally - 12, 0)
+            end
+        }
+    end,
 }
 
 local function get_twow_koopa_initial_ranks()
@@ -1095,6 +1498,33 @@ SMODS.Joker {
             if has_3 and has_ace and has_4 then return { xmult = card.ability.extra.xmult } end
         end
     end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            text = {
+                {
+                    border_nodes = {
+                        { text = "X" },
+                        { ref_table = "card.joker_display_values", ref_value = "x_mult", retrigger_type = "exp" }
+                    }
+                }
+            },
+            calc_function = function(card)
+                local _,_,playing_hand = JokerDisplay.evaluate_hand()
+                has_3 = false has_ace = false has_4 = false misch13vous_succeed = false
+                for i = 1, #playing_hand do
+                    if not SMODS.has_no_rank(playing_hand[i]) then
+                        if playing_hand[i]:get_id() == 3 then has_3 = true end
+                        if playing_hand[i]:get_id() == 14 then has_ace = true end
+                        if playing_hand[i]:get_id() == 4 then has_4 = true end
+                    end
+                end
+                if has_3 and has_ace and has_4 then misch13vous_succeed = true end
+                card.joker_display_values.x_mult = misch13vous_succeed and card.ability.extra.xmult or 1
+            end
+        }
+    end,
 }
 
 -- YUAKIM
@@ -1124,7 +1554,15 @@ SMODS.Joker {
 			context.poker_hands["Four of a Kind"] = context.poker_hands["Three of a Kind"]
 			return { replace_scoring_name = "Four of a Kind" }
 		end
-	end
+	end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- none for Yuakim
+        }
+    end,
+
 }
 
 -- CTLASERDISC
@@ -1162,7 +1600,35 @@ SMODS.Joker {
                 }
             end
         end
-    end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            text = {
+                { text = "+" },
+                { ref_table = "card.joker_display_values", ref_value = "mult", retrigger_type = "mult" }
+            },
+            text_config = { colour = G.C.MULT },
+            reminder_text = {
+                { text = "(".. localize("Jack","ranks") .. ",10,9)" },
+            },
+            calc_function = function(card)
+                local mult = 0
+                local text, _, scoring_hand = JokerDisplay.evaluate_hand()
+                if text ~= 'Unknown' then
+                    for _, scoring_card in pairs(scoring_hand) do
+                        if scoring_card:get_id() and (scoring_card:get_id() == 9 or scoring_card:get_id() == 10 or scoring_card:get_id() == 11) then
+                            mult = mult +
+                                card.ability.extra.mult *
+                                JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand)
+                        end
+                    end
+                end
+                card.joker_display_values.mult = mult
+            end
+        }
+    end,
 }
 
 -- AZURITE
@@ -1222,6 +1688,27 @@ SMODS.Joker {
 
         end
     end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            text = {
+                { text = "+1" },
+            },
+            text_config = { colour = G.C.SECONDARY_SET.Spectral },
+            reminder_text = {
+                { text = "Cards added: (" },
+                { ref_table = "card.joker_display_values", ref_value = "count" },
+                { text = "/" },
+                { ref_table = "card.ability.immutable", ref_value = "requirement" },
+                { text = ")" },
+            },
+            calc_function = function(card)
+                card.joker_display_values.count = card.ability.extra.cards
+            end
+            
+        }
+    end,
 }
 
 -- CASSIEPEPSI
@@ -1276,6 +1763,12 @@ SMODS.Joker {
         end
         return false
     end,
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- none for Cass
+        }
+    end,
 }
 
 
@@ -1319,7 +1812,21 @@ SMODS.Joker{
             end
         end
         if context.joker_main then return {xmult = card.ability.extra.xmult} end
-    end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            text = {
+                {
+                    border_nodes = {
+                        { text = "X" },
+                        { ref_table = "card.ability.extra", ref_value = "xmult", retrigger_type = "exp" }
+                    }
+                }
+            }
+        }
+    end,
 }
 
 
@@ -1356,7 +1863,37 @@ SMODS.Joker {
 				}
 			end
 		end
-	end
+	end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            text = {
+                {
+                    border_nodes = {
+                        { text = "X" },
+                        { ref_table = "card.joker_display_values", ref_value = "x_mult", retrigger_type = "exp" }
+                    }
+                }
+            },
+            reminder_text = {
+                { text = "(Stone)" }
+            },
+            
+            calc_function = function(card)
+                local text,_,scoring_hand = JokerDisplay.evaluate_hand()
+                local triggers = 0
+                if text ~= 'Unknown' then
+                    for _, scoring_card in pairs(scoring_hand) do
+                        if SMODS.has_enhancement(scoring_card, "m_stone") then
+                            triggers = triggers + JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand)
+                        end
+                    end
+                end
+                card.joker_display_values.x_mult = card.ability.extra.xmult ^ triggers
+            end
+        }
+    end,
 }
 
 -- IRONIC
@@ -1395,7 +1932,14 @@ SMODS.Joker {
                 end)
             }))
         end
-    end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- none for Ironic
+        }
+    end,
 }
 
 
@@ -1471,7 +2015,15 @@ SMODS.Joker {
             ret.colour = G.C.MONEY
         end
         return ret
-    end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- I DON'T WANNA DO FLEET I DON'T WANNA I DON'T WANNA
+            -- sorry may you must
+        }
+    end,
 }
 
 
@@ -1533,6 +2085,13 @@ SMODS.Joker {
 
         end
     end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- none for Catworld
+        }
+    end,
 }
 
 
@@ -1583,7 +2142,25 @@ SMODS.Joker {
 
     calc_dollar_bonus = function(self, card)
         return card.ability.extra.dollars
-    end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- insert your definition here
+            text = {
+                { text = "+$" },
+                { ref_table = "card.ability.extra", ref_value = "dollars" },
+            },
+            text_config = { colour = G.C.GOLD },
+            reminder_text = {
+                { ref_table = "card.joker_display_values", ref_value = "localized_text" },
+            },
+            calc_function = function(card)
+                card.joker_display_values.localized_text = "(" .. localize("k_round") .. ")"
+            end
+        }
+    end,
 }
 
 
@@ -1628,7 +2205,31 @@ SMODS.Joker {
         if context.joker_main then
             return {mult = card.ability.extra.mult}            
         end
-    end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            text = {
+                { text = "+", scale = 0.35 },
+                { ref_table = "card.ability.extra", ref_value = "mult", retrigger_type = "mult"},
+            },
+            text_config = { colour = G.C.MULT },
+            extra = {
+                {
+                    { text = "(" },
+                    { ref_table = "card.joker_display_values", ref_value = "odds" },
+                    { text = ")" },
+                }
+            },
+            extra_config = { colour = G.C.GREEN, scale = 0.3 },
+            calc_function = function(card)
+                local numerator, denominator = 1, card.ability.extra.odds_bottom
+                if SMODS then numerator, denominator = SMODS.get_probability_vars(card, numerator, denominator, 'twow_randomg') end
+                card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = { numerator, denominator } }
+            end
+        }
+    end,
 }
 
 
@@ -1666,6 +2267,13 @@ SMODS.Joker {
         ease_discard(-card.ability.extra.discards)
         G.GAME.round_resets.hands = G.GAME.round_resets.hands + card.ability.extra.hands
         ease_hands_played(card.ability.extra.hands)
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- insert your definition here
+        }
     end,
 }
 
@@ -1750,7 +2358,13 @@ SMODS.Joker {
                 colour = G.C.PURPLE
             }
         end
-    end
+    end,
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- none for zixi
+        }
+    end,
 }
 
 
@@ -1806,6 +2420,13 @@ SMODS.Joker {
             context.other_card:set_debuff(false)
             return
         end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- none for May
+        }
     end,
 }
 
@@ -1904,6 +2525,13 @@ SMODS.Joker {
                 end
             }))
         end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- none for aubrey
+        }
     end,
 }
 
@@ -2116,6 +2744,12 @@ SMODS.Joker {
 
         end
     end,
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- none for leah
+        }
+    end,
 }
 
 -- CHECK HUMANY
@@ -2207,6 +2841,13 @@ SMODS.Joker {
         has_other_joker = false
         for _, joker in ipairs(SMODS.find_card("j_twow_grace_period")) do if joker ~= card then has_other_joker = true end end 
         if not next(SMODS.find_card("j_twow_grace_period")) then GLOBAL_twow_grace_period = false end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- none for grace period
+        }
     end,
 }
 
@@ -2301,6 +2942,13 @@ SMODS.Joker {
 
     remove_from_deck = function(self, card, from_debuff)
         G.jokers:change_size(-1)
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- none for speediness potion
+        }
     end,
 }
 
@@ -2497,6 +3145,12 @@ SMODS.Joker {
         end
     end,
 
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- none for drp
+        }
+    end,
 }
 
 -- GRIDLOCK
@@ -2530,7 +3184,14 @@ SMODS.Joker {
                 return {m_wild = true} 
             end
         end
-    end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            
+        }
+    end,
 }
 
 -- ALUMNUS
@@ -2657,6 +3318,13 @@ SMODS.Joker {
                 end
             end
         end
+    end,
+
+    joker_display_def = function(JokerDisplay)
+        ---@type JDJokerDefinition
+        return {
+            -- insert your definition here
+        }
     end,
 
 }
